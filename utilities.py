@@ -6,8 +6,6 @@ import numpy as np
 import subprocess
 import cv2
 import glob
-#import matplotlib
-#matplotlib.use('TKAgg') # Needed to have figures display properly. 
 
 def save_thermal_csv(flirobj, filename):
     """
@@ -241,7 +239,7 @@ def create_class_mask(classimg, classinterest, plot=1):
     as 0 and all classes of interest to 1. This can be used to extract temperatures
     only for classes of interest. 
     INPUTS:
-        1) classinterest: a array containing the class or classes of interest. 
+        1) classinterest: a array containing the class or classes of interest. Count base 1 to match K-Means Class Image
                 All other classes will be masked out
         2) classimg: the K-Means class image which is (2D) numpy array
         3) plot: a flag that determine if a figure of masked K-Means class image is displayed. 
@@ -253,13 +251,13 @@ def create_class_mask(classimg, classinterest, plot=1):
     """
     mask = np.zeros((classimg.shape[0], classimg.shape[1]))
     if isinstance(classinterest,int):
-        endrange = 1
+        idx_x, idx_y = np.where(classimg == classinterest-1)
+        mask[idx_x, idx_y] = 1
     else:
         endrange = len(classinterest)
-    
-    for c in range(0,endrange):
-        idx_x, idx_y = np.where(classimg == c)
-        mask[idx_x, idx_y] = 1
+        for c in range(0,endrange):
+            idx_x, idx_y = np.where(classimg == classinterest[c]-1)
+            mask[idx_x, idx_y] = 1
     
     if plot == 1:
         plt.figure(figsize=(10,5))
