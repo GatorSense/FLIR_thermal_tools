@@ -6,6 +6,7 @@ import numpy as np
 import subprocess
 import cv2
 import glob
+from skimage.transform import rescale
 
 def save_thermal_csv(flirobj, filename):
     """
@@ -48,9 +49,13 @@ def extract_coarse_image(flirobj, offset=[0], plot=1):
     else:
         offsetx = offset[0]
         offsety = offset[1]
+    pipx1 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPX1", "-b", flirobj.flir_img_filename])) # Width
+    pipy1 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPY1", "-b", flirobj.flir_img_filename])) # Height
     pipx2 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPX2", "-b", flirobj.flir_img_filename])) # Width
     pipy2 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPY2", "-b", flirobj.flir_img_filename])) # Height
     real2ir = float(subprocess.check_output([flirobj.exiftool_path, "-Real2IR", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
+    print(real2ir)
+    
     
     # Set up Arrays
     height_range = np.arange(0,highres_ht,real2ir).astype(int)
@@ -61,8 +66,10 @@ def extract_coarse_image(flirobj, offset=[0], plot=1):
     lowres = np.swapaxes(visual[htv, wdv,  :], 0, 1)
     
     # Cropping low resolution data
-    height_range = np.arange(-offsety,-offsety+pipy2).astype(int)
-    width_range = np.arange(-offsetx,-offsetx+pipx2).astype(int)
+#    height_range = np.arange(-offsety,-offsety+pipy2).astype(int)
+#    width_range = np.arange(-offsetx,-offsetx+pipx2).astype(int)
+    height_range = np.arange(-offsety+pipy1,-offsety+pipy2).astype(int)
+    width_range = np.arange(-offsetx+pipx1,-offsetx+pipx2).astype(int)
     xv, yv = np.meshgrid(height_range,width_range)
     crop = np.swapaxes(lowres[xv, yv, :],0,1)
     
@@ -78,6 +85,40 @@ def extract_coarse_image(flirobj, offset=[0], plot=1):
         plt.show(block='TRUE') 
         
     return lowres, crop
+
+def extract_rescale_image(flirobj, plot=1):
+    """
+    Function that creates the coarse RGB image that matches the resolution of the thermal image.
+    
+    INPUTS:
+        1) flirobj: the flirimageextractor object.
+        2) offset: optional variable that shifts the RGB image to match the same field of view as thermal image. 
+                If not provided the offset values will be extracted from FLIR file. 
+                Use the manual_img_registration function to determine offset.
+        3) plot: a flag that determine if a figure of thermal and coarse cropped RGB is displayed. 
+                1 = plot displayed, 0 = no plot is displayed
+    OUTPUTS:
+        1) image_rescaled: a 3D numpy array of RGB image that matches resolution of thermal image (It has not been cropped) 
+        """
+    # Get RGB Image
+    visual = flirobj.rgb_image_np
+    
+    # Getting Values for Offset
+    scale = float(subprocess.check_output([flirobj.exiftool_path, "-Megapixels", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
+    image_rescaled = rescale(visual, scale, anti_aliasing=False, multichannel=1)
+    
+    if plot == 1:
+        therm = flirobj.get_thermal_np()
+        plt.figure(figsize=(10,5))
+        plt.subplot(1,2,1)
+        plt.imshow(therm, cmap='jet')
+        plt.title('Thermal Image')
+        plt.subplot(1,2,2)
+        plt.imshow(image_rescaled)
+        plt.title('RGB Low Res Image')
+        plt.show(block='TRUE') 
+        
+    return image_rescaled
 
 def manual_img_registration(flirobj):
     """
@@ -103,7 +144,8 @@ def manual_img_registration(flirobj):
     """
     # Getting Images
     therm = flirobj.get_thermal_np()
-    rgb, junk = extract_coarse_image(flirobj)
+    #rgb, junk = extract_coarse_image(flirobj)
+    rgb = extract_rescale_image(flirobj)
     
     # Plot Images
     fig = plt.figure(figsize=(10,5))
@@ -129,8 +171,15 @@ def manual_img_registration(flirobj):
     size_therm = pts_therm.shape[0]
     size_rgb = pts_rgb.shape[0]
     offset = [0,0]
-    if size_therm == size_rgb:
+    if size_therm == size_rgb:  # Check to make sure they have the same number of points
         pts_diff = pts_therm - pts_rgb  
+        
+        if np.any(pts_diff) > 0:  # Check to make sure the values are negative offsets (if there are positive then the images were clicked in the wrong order) )
+            idx_x, idx_y = np.where(pts_diff > 0)
+            row = np.unique(idx_x)
+            for r in row:
+                np.delete(pts_diff, row[r], axis=0)
+                print('The following point was removed because images were clicked in wrong order: ' + str(pts_diff[row,:]))
         offset = np.around(np.mean(pts_diff, axis=0))
     else:
         print('Number of points do not match between images')
