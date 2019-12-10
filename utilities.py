@@ -6,6 +6,7 @@ import numpy as np
 import subprocess
 import cv2
 import glob
+from skimage.transform import rescale
 
 def save_thermal_csv(flirobj, filename):
     """
@@ -21,7 +22,7 @@ def save_thermal_csv(flirobj, filename):
     data = flirobj.get_thermal_np()
     np.savetxt(filename, data, delimiter=',')
 
-def extract_coarse_image(flirobj, offset=[0], plot=1):
+def extract_rescale_image(flirobj, offset=[0], plot=1):
     """
     Function that creates the coarse RGB image that matches the resolution of the thermal image.
     
@@ -33,51 +34,42 @@ def extract_coarse_image(flirobj, offset=[0], plot=1):
         3) plot: a flag that determine if a figure of thermal and coarse cropped RGB is displayed. 
                 1 = plot displayed, 0 = no plot is displayed
     OUTPUTS:
-        1) lowres: a 3D numpy array of RGB image that matches resolution of thermal image (It has not been cropped) 
-        2) crop: a 3D numpy arary of RGB image that matches resolution and field of view of thermal image.
-    """
+        1) image_rescaled: a 3D numpy array of RGB image that matches resolution of thermal image (It has not been cropped) 
+        """
     # Get RGB Image
-    visual = flirobj.rgb_image_np
-    highres_ht = visual.shape[0]
-    highres_wd = visual.shape[1]
+    visual = flirobj.get_rgb_np()
+    therm = flirobj.get_thermal_np()
     
     # Getting Values for Offset
+    scale = float(subprocess.check_output([flirobj.exiftool_path, "-Megapixels", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
+    image_rescaled = rescale(visual, scale, anti_aliasing=False, multichannel=1)
+    
     if len(offset) < 2:
-        offsetx = int(subprocess.check_output([flirobj.exiftool_path, "-OffsetX", "-b", flirobj.flir_img_filename])) 
-        offsety = int(subprocess.check_output([flirobj.exiftool_path, "-OffsetY", "-b", flirobj.flir_img_filename])) 
+        ht_center = image_rescaled.shape[0]/2
+        wd_center = image_rescaled.shape[1]/2
+        yrange = np.arange(ht_center-(therm.shape[0]/2),ht_center+(therm.shape[0]/2), dtype=int)
+        xrange = np.arange(wd_center-(therm.shape[1]/2),wd_center+(therm.shape[1]/2), dtype=int)
     else:
-        offsetx = offset[0]
-        offsety = offset[1]
-    pipx2 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPX2", "-b", flirobj.flir_img_filename])) # Width
-    pipy2 = int(subprocess.check_output([flirobj.exiftool_path, "-PiPY2", "-b", flirobj.flir_img_filename])) # Height
-    real2ir = float(subprocess.check_output([flirobj.exiftool_path, "-Real2IR", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
+        yrange = np.arange(-offset[0],-offset[0]+(therm.shape[0])).astype(int)
+        xrange = np.arange(-offset[1],-offset[1]+(therm.shape[1])).astype(int)
     
-    # Set up Arrays
-    height_range = np.arange(0,highres_ht,real2ir).astype(int)
-    width_range = np.arange(0,highres_wd,real2ir).astype(int)
-    htv, wdv = np.meshgrid(height_range,width_range)
-    
-    # Assigning low resolution data
-    lowres = np.swapaxes(visual[htv, wdv,  :], 0, 1)
-    
-    # Cropping low resolution data
-    height_range = np.arange(-offsety,-offsety+pipy2).astype(int)
-    width_range = np.arange(-offsetx,-offsetx+pipx2).astype(int)
-    xv, yv = np.meshgrid(height_range,width_range)
-    crop = np.swapaxes(lowres[xv, yv, :],0,1)
+    htv, wdv = np.meshgrid(yrange,xrange)
+    image_cropped = np.swapaxes(image_rescaled[htv, wdv, :],1,0)    
     
     if plot == 1:
-        therm = flirobj.get_thermal_np()
         plt.figure(figsize=(10,5))
-        plt.subplot(1,2,1)
+        plt.subplot(1,3,1)
         plt.imshow(therm, cmap='jet')
         plt.title('Thermal Image')
-        plt.subplot(1,2,2)
-        plt.imshow(crop)
+        plt.subplot(1,3,2)
+        plt.imshow(image_rescaled)
+        plt.title('RGB Low Resolution Image')
+        plt.subplot(1,3,3)
+        plt.imshow(image_cropped)
         plt.title('RGB Cropped Image')
         plt.show(block='TRUE') 
         
-    return lowres, crop
+    return image_rescaled, image_cropped
 
 def manual_img_registration(flirobj):
     """
@@ -103,7 +95,8 @@ def manual_img_registration(flirobj):
     """
     # Getting Images
     therm = flirobj.get_thermal_np()
-    rgb, junk = extract_coarse_image(flirobj)
+    #rgb, junk = extract_coarse_image(flirobj)
+    rgb, junk = extract_rescale_image(flirobj, plot=0)
     
     # Plot Images
     fig = plt.figure(figsize=(10,5))
@@ -129,8 +122,15 @@ def manual_img_registration(flirobj):
     size_therm = pts_therm.shape[0]
     size_rgb = pts_rgb.shape[0]
     offset = [0,0]
-    if size_therm == size_rgb:
+    if size_therm == size_rgb:  # Check to make sure they have the same number of points
         pts_diff = pts_therm - pts_rgb  
+        
+        if np.any(pts_diff) > 0:  # Check to make sure the values are negative offsets (if there are positive then the images were clicked in the wrong order) )
+            idx_x, idx_y = np.where(pts_diff > 0)
+            row = np.unique(idx_x)
+            for r in row:
+                np.delete(pts_diff, row[r], axis=0)
+                print('The following point was removed because images were clicked in wrong order: ' + str(pts_diff[row,:]))
         offset = np.around(np.mean(pts_diff, axis=0))
     else:
         print('Number of points do not match between images')
@@ -217,7 +217,7 @@ def apply_mask_to_rgb(mask, rgbimg, plot=1):
         1) masked_rgb: a 3D numpy array that contains RGB image with all pixels 
                 designated as 0 in the mask are black. 
     """         
-    masked_rgb = np.zeros((rgbimg.shape[0], rgbimg.shape[1], rgbimg.shape[2]),int)
+    masked_rgb = np.zeros((rgbimg.shape[0], rgbimg.shape[1], rgbimg.shape[2]),rgbimg.dtype)
     for d in range(0,rgbimg.shape[2]):
         masked_rgb[:,:,d] = rgbimg[:,:,d] * mask 
     
