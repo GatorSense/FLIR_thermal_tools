@@ -5,7 +5,7 @@ This repository of code processes temperature imagery collected using FLIR camer
   * correct offset between RGB and thermal imagery 
   * Classify RGB in order to separate image materials
   * Use co-aligned RGB to pull out class's pixels
-Note: this may not work for all FLIR cameras and is specifically designed for cameras that have an RGB camera. 
+Note: this may not work for all FLIR cameras and is specifically designed for cameras that have an RGB camera. Tested on FLIR T630sc and FLIR T540 cameras. 
 
 ## Dependencies
 This repository requires multiple packages to process the imagery including:  
@@ -20,7 +20,7 @@ exiftools:
 ## Functions:
 These are functions that are included in this repository. The python package flirimageextractor also has a lot of built in functions that users maybe interested in.
   * save_thermal_csv: Extracts the temperature data and exports it as a .csv. A comparison between temperature retrieval using FLIR Tools and this code shows a 0.001 to 0.006 degrees celsius difference.
-  * extract_coarse_image: The FLIR imagery contains a high spatial resolution and large field of view RGB imagery. This function scales and crops RGB imagery to match the thermal imagery. If a manual offset value is not provided it will crop the image based on offset values contained in header file. 
+  * extract_rescale_image: The FLIR imagery contains a high spatial resolution and large field of view RGB imagery. This function scales and crops RGB imagery to match the thermal imagery. If a manual offset value is not provided it will crop the image based on offset values contained in header file. 
   * manual_img_registration: This function helps users determine the manual offset between rgb and thermal imagery. See section below on more details on this function. 
   * classify_rgb: This function classifies the RGB imagery using K-Means to determine the materials in the images. Tip: mask out areas that are not of interest to improve classification. 
   * extract_temp_for_class: This function extracts temperature values for pixels of interest. This is for a single image

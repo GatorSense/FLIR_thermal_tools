@@ -11,7 +11,7 @@ December 2019
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('TKAgg') # Needed to have figures display properly. 
+matplotlib.use('TKAgg') # Needed to have figures display properly in spyder. 
 import flirimageextractor
 import utilities as u
 
@@ -38,9 +38,9 @@ plt.show(block='TRUE') # I needed to have block=TRUE for image to remain display
 ## Check how well thermal and rgb registration is without manually correction
 # You can see that the images do not line up and there is an offset even after 
 # correcting for offset provided in file header
-rgb_lowres, rgb_crop = u.extract_coarse_image(flir)
+rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 
-### Determine manual correction of Thermal and RGB registration 
+## Determine manual correction of Thermal and RGB registration 
 offset, pts_temp, pts_rgb = u.manual_img_registration(flir)
 print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(offset[1]))
 
@@ -49,7 +49,7 @@ print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(of
 # By doing this we can use the RGB image to classify the material types in the images.
 # This is useful if you are interested in one particular part or class type.
 offset = [-155, -70]  # This i the manual offset I got when running the demo images.
-rgb_lowres, rgb_crop = u.extract_coarse_image(flir, offset=offset, plot=1)
+rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 #  Build a mask of your area of interest 
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
