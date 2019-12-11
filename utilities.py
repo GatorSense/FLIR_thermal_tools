@@ -44,6 +44,12 @@ def extract_rescale_image(flirobj, offset=[0], plot=1):
     scale = float(subprocess.check_output([flirobj.exiftool_path, "-Megapixels", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
     image_rescaled = rescale(visual, scale, anti_aliasing=False, multichannel=1)
     
+    # If the rescaled image is smaller than the thermal image, just real2ir value instead of megapixels
+    if image_rescaled.shape[0] < therm.shape[0]:
+        real2ir = float(subprocess.check_output([flirobj.exiftool_path, "-Real2ir", "-b", flirobj.flir_img_filename])) # conversion of RGB to Temp
+        scale = 100/(100*real2ir)
+        image_rescaled = rescale(visual, scale, anti_aliasing=False, multichannel=1)
+    
     if len(offset) < 2:
         ht_center = image_rescaled.shape[0]/2
         wd_center = image_rescaled.shape[1]/2
@@ -53,6 +59,7 @@ def extract_rescale_image(flirobj, offset=[0], plot=1):
         yrange = np.arange(-offset[0],-offset[0]+(therm.shape[0])).astype(int)
         xrange = np.arange(-offset[1],-offset[1]+(therm.shape[1])).astype(int)
     
+    # Crop the rescaled imaged
     htv, wdv = np.meshgrid(yrange,xrange)
     image_cropped = np.swapaxes(image_rescaled[htv, wdv, :],1,0)    
     
