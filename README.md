@@ -14,7 +14,7 @@ flirimageextractor:
   * https://flirimageextractor.readthedocs.io/en/latest/flirimageextractor.html  
 
 exiftools: 
-  * https://github.com/exiftool/exiftool  
+  * https://exiftool.org/
   * Depending on where exiftools is installed you may have to change the exiftools path for flirimageextractor. An example of this is in the demo.py file. 
 
 ## Functions:
