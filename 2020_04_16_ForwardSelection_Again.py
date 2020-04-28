@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Forward Selection combined with classification
-using sklearn
+Forward Selection combined with classification using sklearn
+currently only uses plant in the training set which is incorrect.
+
 Created on Fri Apr 17 00:35:59 2020
 
 @author: sofiavega
@@ -116,7 +117,7 @@ b_lab = b_lab.flatten().reshape(440,1)
 #Make feature matrix
 feat_mat = np.concatenate((r,g,b,h,s,v,l,a,b_lab), axis = 1)
 
-plant_label = np.zeros((r.shape[0]))  + 1
+
 plant_label = np.zeros((r.shape[0]))  
 
 GMM = GaussianMixture(n_components=3)
@@ -217,7 +218,7 @@ b_lab = b_lab.flatten().reshape(r.shape[0],1)
 #Make feature matrix
 feat_mat = np.concatenate((r,g,b,h,s,v,l,a,b_lab), axis = 1)
 
-plant_label = np.zeros((r.shape[0]))  + 1
+
 plant_label = np.zeros((r.shape[0]))  
 
 GMM = GaussianMixture(n_components=3)
@@ -318,7 +319,6 @@ b_lab = b_lab.flatten().reshape(r.shape[0],1)
 #Make feature matrix
 feat_mat = np.concatenate((r,g,b,h,s,v,l,a,b_lab), axis = 1)
 
-plant_label = np.zeros((r.shape[0]))  + 1
 plant_label = np.zeros((r.shape[0]))  
 
 GMM = GaussianMixture(n_components=3)

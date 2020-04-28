@@ -5,20 +5,14 @@ Created on Sun Apr  5 11:43:09 2020
 @author: sofiavega
 """
 
-import numpy as np
+
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('TKAgg') # Needed to have figures display properly in spyder. 
 import flirimageextractor
 import FLIR_thermal_tools.utilities as u
-import cv2
-from scipy import ndimage
-from sklearn.mixture import GaussianMixture
-from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from matplotlib import colors
-from sklearn.cluster import spectral_clustering
+ 
+
 
 ##Testing the 2019-05-05 data set
 ## Load Image using flirimageextractor
@@ -47,7 +41,10 @@ plt.show(block='TRUE') # I needed to have block=TRUE for image to remain display
 #The rgb cropped seems pretty close
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 
-GMM_rgb(image=rgb_crop,num_class=3,hsv = 0, plot=1)
+GMM_rgb(image=rgb_crop,num_class=3,hsv = 2, plot=1)
+
+##plot the GMM classification and see how plant is classified from background.
+##Change number of classes or transfromation (hsv) to find the best classiication.
 
 ###############################################################################
 ##Testing the 2019-02-04 Data Set
@@ -77,11 +74,11 @@ plt.show(block='TRUE') # I needed to have block=TRUE for image to remain display
 #The rgb cropped seems pretty close
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 
-GMM_rgb(image=rgb_crop,num_class=3,hsv = 0, plot=1)
+GMM_rgb(image=rgb_crop,num_class=7,hsv = 2, plot=1)
 
 
 ###############################################################################
-##Testing the 2019-02-04 Data Set
+##Testing the 2019-01-09 Data Set
 ## Load Image using flirimageextractor
 # Note: I had to change the path of my exiftool which you may need to also change.
 filename = 'C:\\Users\\sofiavega\\FLIR_thermal_tools\\FLIR0138.jpg'

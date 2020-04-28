@@ -2,6 +2,10 @@
 """
 Forward Selection by hand to see which features in R,G,B,H,S,V,L,A,B give the 
 best GMM classification.
+
+This was done by hand. I first plotted all of the features individually through the GMM classification
+then I picked the best one and added one other features to theclassification until I found the two
+best features. Then I added a third feature to the two best features until I found the est three features.
 Created on Mon Apr 13 10:28:15 2020
 
 @author: sofiavega
@@ -16,7 +20,6 @@ import FLIR_thermal_tools.utilities as u
 import cv2
 from scipy import ndimage
 from sklearn.mixture import GaussianMixture
-from mpl_toolkits.mplot3d import Axes3D # <--- This is important for 3d plotting 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 from matplotlib import colors
@@ -554,7 +557,7 @@ plt.show(block='TRUE')
 
 #L and V and S-----------------------------------------------------------
 #BEST three variable combination
-lvs = np.dstack((l,v,s)) #append l and v since those were the best
+lvs = np.dstack((l,v,s)) #append l,s, and v since those were the best
 
 img = lvs
 image = rgb_crop
@@ -589,7 +592,7 @@ fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
 plt.show(block='TRUE')
 
 #L and V and and S and B(rgb)-----------------------------------------------------------
-lvsb = np.dstack((l,v,s,b)) #append l and v since those were the best
+lvsb = np.dstack((l,v,s,b)) 
 
 img = lvsb
 image = rgb_crop
@@ -660,7 +663,7 @@ plt.show(block='TRUE')
 
 # land g and S-----------------------------------------------------------
 #Try our other three variable combinations here, none are better than LVS
-gvs = np.dstack((g,v,s)) #append l and v since those were the best
+gvs = np.dstack((g,v,s)) 
 
 img = vgs
 image = rgb_crop

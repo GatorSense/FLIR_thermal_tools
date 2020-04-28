@@ -213,10 +213,10 @@ def GMM_rgb(image,num_class,hsv= 0, plot=1):
     This classifies an RGB image using Gaussian Mixture Modeling.
     Note: only 10 colors are specified, so will have plotting error with K > 10
     INPUTS:
-        1) image: a 3D numpy array of rgb image
+        1) img: a 3D numpy array of rgb image
         2) num_class: number of GMM classes
-        3) hsv: transform the image from rgb to hsv
-                1 = transform to hsv, 0 = no transformation (default)
+        3) hsv: transform the image from rgb to hsv or lab
+                1 = transform to hsv, 0 = keep RGB (default), 2 = transform to lab
         4) plot: a flag that determine if multiple figures of classified is displayed. 
                 1 = plot displayed, 0 = no plot is displayed
     OUTPUTS:
@@ -225,6 +225,56 @@ def GMM_rgb(image,num_class,hsv= 0, plot=1):
         
     """
     img = np.array(image)
+   
+    if hsv == 2:
+        #Transform to LAB
+        # make sure that values are between 0 and 255, i.e. within 8bit range
+        img *= 255/img.max() 
+        # cast to 8bit
+        img = np.array(img, np.uint8)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+        
+         #Prepare Image
+        vectorized = img.reshape((-1,3))
+        vectorized = np.float32(vectorized)
+    
+        #Gaussian Mixture Modeling
+        gmm = GaussianMixture(n_components=num_class).fit(vectorized)
+        labels = gmm.predict(vectorized)
+        
+        
+        # Labeled class image
+        label_image = labels.reshape((img.shape[0], img.shape[1]))
+        
+        
+        if plot == 1:
+            # Plotting Results
+            coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
+            fig = plt.figure(figsize=(10,5))
+            ax1 = fig.add_subplot(1,2,1)
+            ax1.imshow(image)
+            ax1.set_title('Original Image') 
+            ax1.set_xticks([])
+            ax1.set_yticks([])
+            ax2 = fig.add_subplot(1,2,2)
+            cmap = colors.ListedColormap(coloroptions[0:num_class])
+            ax2.imshow(label_image, cmap=cmap)
+            ax2.set_title('GMM with LAB Classes = ' + str(num_class) )
+            ax2.set_xticks([]) 
+            ax2.set_yticks([])
+            fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
+            plt.show(block='TRUE')
+            
+            # Plotting just GMM with label
+            ticklabels = ['1','2','3','4','5','6','7','8','9','10']
+            fig, ax = plt.subplots(figsize=(5,5))
+            im = ax.imshow(label_image, cmap=cmap)
+            cbar = fig.colorbar(im, ax=ax, shrink = 0.6, ticks=np.arange(0,num_class)) 
+            cbar.ax.set_yticklabels(ticklabels[0:num_class]) 
+            cbar.ax.set_ylabel('Classes')
+            plt.show(block='TRUE')
+   
+    
     if hsv == 1:
         #Transform to HSV
         # make sure that values are between 0 and 255, i.e. within 8bit range
@@ -274,7 +324,6 @@ def GMM_rgb(image,num_class,hsv= 0, plot=1):
             plt.show(block='TRUE')
         
     if hsv == 0:
-        #Keep as RGB
         #Prepare Image
         vectorized = img.reshape((-1,3))
         vectorized = np.float32(vectorized)

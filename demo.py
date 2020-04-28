@@ -3,7 +3,7 @@
 This script contains a demonstration of the functions and capabilities of this
 repository. It will also give an example work flow for a set of images.
 
-@author: susanmeerdink
+@author: susanmeerdink with edits from Sofia
 December 2019
 """
 
@@ -13,12 +13,13 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('TKAgg') # Needed to have figures display properly in spyder. 
 import flirimageextractor
-import utilities as u
+import FLIR_thermal_tools.utilities as u
 
 ## Load Image using flirimageextractor
 # Note: I had to change the path of my exiftool which you may need to also change.
-filename = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\IR_56020.jpg'
-flir = flirimageextractor.FlirImageExtractor(exiftool_path="C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe")
+# To find the path, open up the zip file after downloading the exiftool and copy the path in the app.
+filename = 'C:\\Users\\sofiavega\\FLIR_thermal_tools\\Test_Images\\IR_56020.jpg'
+flir = flirimageextractor.FlirImageExtractor(exiftool_path="C:\\Users\\sofiavega\\AppData\\Local\\Temp\\Temp2_exiftool-11.91.zip\\exiftool(-k)")
 flir.process_image(filename, RGB=True)
 
 ## Examine thermal and full resolution RGB images
@@ -69,8 +70,8 @@ emiss_img = u.develop_correct_emissivity(rgb_class)
 temp_mask = u.extract_temp_for_class(flir, class_mask, emiss_img)
 
 # Pull out thermal pixels of just plants for a set of images
-dirLoc = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\'
-exiftoolpath = "C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe"
+dirLoc = 'C:\\Users\\sofiavega\\FLIR_thermal_tools\\Test_Images\\'
+exiftoolpath = "C:\\Users\\sofiavega\\AppData\\Local\\Temp\\Temp2_exiftool-11.91.zip\\exiftool(-k)"
 all_temp_mask = u.batch_extract_temp_for_class(dirLoc, class_mask, emiss_img, exiftoolpath=exiftoolpath)
 plt.figure(figsize=(15,5))
 plt.subplot(1,3,1)

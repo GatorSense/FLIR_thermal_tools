@@ -61,17 +61,12 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 %matplotlib inline
 
 
-plant = np.append(np.append(rgb_crop[270:290,140:147].flatten() , rgb_crop[240:270,105:110].flatten()), rgb_crop[450:480,570:575].flatten())
  
-plant = np.append(np.append(rgb_crop[270:290,140:147] , rgb_crop[240:270,105:110]), rgb_crop[450:480,570:575])
- 
-
-#plant_label = np.zeros((plant.shape[0], plant.shape[1])) + 1
-#plant_label = np.zeros((r.shape[0]))  
 
 
 #split RGB
 r,g,b = cv2.split(rgb_crop)
+#training set of plant pixels
 r = np.append(np.append(r[270:290,140:147] , r[240:270,105:110]), r[450:480,570:575])
 g = np.append(np.append(g[270:290,140:147] , g[240:270,105:110]), g[450:480,570:575])
 b = np.append(np.append(b[270:290,140:147] , b[240:270,105:110]), b[450:480,570:575])

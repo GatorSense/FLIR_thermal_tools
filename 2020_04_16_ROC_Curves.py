@@ -2,6 +2,9 @@
 """
 
 Calculate ROC Curves and RMSE for Training Sets from multiple data sets
+The curent training set has only plant so ROC curves could not be created. To
+create ROC curves, create a training set with both plant and background.
+
 Created on Thu Apr 16 23:12:02 2020
 
 @author: sofiavega
@@ -59,43 +62,7 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 %matplotlib inline
 
 
-#extract plant
-plant = np.append(np.append(rgb_crop[270:290,140:147].flatten() , rgb_crop[240:270,105:110].flatten()), rgb_crop[450:480,570:575].flatten())
- 
 
-
-plant_label = np.zeros((plant.shape[0])) + 1
-
-
-labels = GMM_rgb(image=rgb_crop,num_class=3,hsv = 0, plot=1)
-
-pred = labels[270:290,140:147]
-pred = plant_label.flatten()
-
-fpr, tpr, thresholds = roc_curve(plant_label, pred)
-tpr = np.array([1,1])
-fpr = np.array([0,1])
-roc_auc = auc(fpr, tpr)
-
-
-
-
-plt.figure()
-lw = 2
-plt.plot(fpr, tpr, color='darkorange',
-         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
-plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curve for RGB GMM on plant only')
-plt.legend(loc="lower right")
-plt.show()
-
-#calculate mse
-mse = mean_squared_error(plant_label,pred)
-rmse = math.sqrt(mse) #0
 
 #-----------------------------------------------------------------
 r,g,b = cv2.split(rgb_crop)
@@ -115,6 +82,8 @@ labels = gmm.predict(vectorized)
 label_image = labels.reshape((img.shape[0], img.shape[1]))
 
 plt.imshow(label_image)
+
+#training set containing only plant
 pred = np.append(np.append(label_image[270:290,140:147].flatten(), label_image[240:270,105:110].flatten()), label_image[450:480,570:575].flatten())
 
 
@@ -125,37 +94,8 @@ plant_label = np.zeros((pred.shape[0])) +1
 mse = mean_squared_error(plant_label,pred)
 rmse = math.sqrt(mse) #0.21320071635561044
 
-plant_label = label_binarize(plant_label, classes=[0, 1, 2])
 
-n_classes = plant_label.shape[1]
 
-y_score = classifier.fit(X_train, y_train).decision_function(X_test)
-
-# Compute ROC curve and ROC area for each class
-fpr = dict()
-tpr = dict()
-roc_auc = dict()
-for i in range(n_classes):
-    fpr[i], tpr[i], _ = roc_curve(plant_label[:, i], pred[:, i])
-    roc_auc[i] = auc(fpr[i], tpr[i])
-    
-    
-plt.figure()
-lw = 2
-plt.plot(fpr, tpr, color='darkorange',
-         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
-plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curve for R GMM on plant only')
-plt.legend(loc="lower right")
-plt.show()
-
-#calculate mse
-mse = mean_squared_error(plant_label,pred)
-rmse = math.sqrt(mse) #0
 
 #------------------------------------g------------------------
 img = g
