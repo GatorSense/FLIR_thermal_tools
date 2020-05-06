@@ -66,14 +66,16 @@ def extract_rescale_image(flirobj, offset=[0], plot=1):
     if plot == 1:
         plt.figure(figsize=(10,5))
         plt.subplot(1,3,1)
-        plt.imshow(therm, cmap='jet')
-        plt.title('Thermal Image')
-        plt.subplot(1,3,2)
         plt.imshow(image_rescaled)
         plt.title('RGB Low Resolution Image')
+        plt.subplot(1,3,2)
+        plt.imshow(therm, cmap='jet')
+        plt.title('Thermal Image')
+        plt.grid(color='w', linestyle='-', linewidth=2)
         plt.subplot(1,3,3)
         plt.imshow(image_cropped)
         plt.title('RGB Cropped Image')
+        plt.grid(color='w', linestyle='-', linewidth=2)
         plt.show(block='TRUE') 
         
     return image_rescaled, image_cropped
@@ -302,9 +304,13 @@ def extract_temp_for_class(flirobj, mask, emiss=[0], plot=1):
     if plot == 1:
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
-        plt.imshow(therm, cmap='jet')
+        minT = np.min(therm)
+        maxT = np.max(therm)
+        print(minT)
+        print(maxT)
+        plt.imshow(therm, cmap='jet', vmin=minT, vmax=maxT)
         plt.subplot(1,2,2)
-        plt.imshow(therm_masked, cmap='jet')
+        plt.imshow(therm_masked, cmap='jet', vmin=minT, vmax=maxT)
         plt.show(block='TRUE')
         
     return therm_masked
