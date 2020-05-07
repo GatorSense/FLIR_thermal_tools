@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 This script contains a demonstration of the functions and capabilities of this
 repository. It will also give an example work flow for a set of images.
-
-@author: susanmeerdink
-December 2019
+Last Updated: Susan Meerdink, May 2020
 """
 
 # Importing Functions
@@ -15,10 +12,15 @@ matplotlib.use('TKAgg') # Needed to have figures display properly in spyder.
 import flirimageextractor
 import utilities as u
 
+## ---GETTING STARTED----------------------------------------------------------
+## Setting up some parameters
+# You will have change the path of exiftool depending on where it was installed.
+dirLoc = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\'
+exiftoolpath = "C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe" 
+
 ## Load Image using flirimageextractor
-# Note: I had to change the path of my exiftool which you may need to also change.
-filename = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\IR_56020.jpg'
-flir = flirimageextractor.FlirImageExtractor(exiftool_path="C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe")
+filename = dirLoc + 'IR_56020.jpg'
+flir = flirimageextractor.FlirImageExtractor(exiftool_path=exiftoolpath)
 flir.process_image(filename, RGB=True)
 
 ## Examine thermal and full resolution RGB images
@@ -35,6 +37,7 @@ plt.imshow(rgb_fullres)
 plt.title('RGB Full Resolution Image')
 plt.show(block='TRUE') # I needed to have block=TRUE for image to remain displayed
 
+## ---CO-REGISTRATION OF THERMAL & RGB IMAGES----------------------------------
 ## Check how well thermal and rgb registration is without manually correction
 # You can see that the images do not line up and there is an offset even after 
 # correcting for offset provided in file header
@@ -51,27 +54,67 @@ print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(of
 offset = [-155, -70]  # This i the manual offset I got when running the demo images.
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
-#  Build a mask of your area of interest 
+## ---SELECTING PIXELS OF INTEREST---------------------------------------------
+# With the co-registration of the thermal and RGB images, you can use the RGB 
+# pixels to pull specific thermal pixels of interest. For the below example,
+# we are interested in pixels that are only plant. There are two methods we are 
+# using to cluster pixels and select plant pixels - K Means Clustering and 
+# Gaussian Mixture Models. Both of these methods do not require training, but as 
+# a result may not be as accurate as a classification method.
+
+# METHOD 1: K Means Clustering
+# We have found this method to be very sensitive to background pixels. 
+# So the first step we will build a mask to avoid pixels that will be 
+# confused with plant pixels.
+# Build a mask of your area of interest 
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
 mask[30:270,220:400] = 1
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
-# Classify using K-Means the newly masked rgb image
-rgb_class, rgb_qcolor = u.classify_rgb(rgb_mask, 3)
+# Classify using K-Means Clustering the newly masked rgb image
+rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 3)
+
+# Pull out just the class for plant material 
+class_mask_KMC = u.create_class_mask(rgb_class, 3)
+
+# METHOD 2: Gaussian Mixture Models
+# We have found this method to be more robust than K-Means Clustering, but 
+# still may have issues in particular areas that have similiar values to your 
+# class of interest. You may want to develop a classification algorithm for 
+# your particular research problem that will yield better results.
+# In the following steps, we will use the results from the GMM not KMC.
+
+# Classify using Gaussian Mixture Models the rgb image
+rgb_class = u.classify_rgb_GMM(rgb_mask, 6)
 
 # Pull out just the class for plant material
-class_mask = u.create_class_mask(rgb_class, 2)
+class_mask = u.create_class_mask(rgb_class, [3,6])
 
-# Correct temperature imagery for correct emissivity
+## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
+# In order to determine the temperature of an object, it is necessary to also 
+# know or assume an emissivity value for that object. Thermal cameras tend to 
+# use a default emissivity of 0.95 to generate temperature. However, most objects
+# do not have an emissivity of 0.95 which would result in an error in the temperature
+# calculation. With the steps above which groups pixels into classes, we can
+# correct the emissivity for different classes and update the temperature values.
+
+## Correct temperature imagery for correct emissivity
+# This function will ask you what emissivity value you would like to assign to 
+# each class. There are tables online for broadband emissivity values. If you
+# do not know the emissivity, keep the value at 0.95. 
+# In this example, I set the vegetation pixels to 0.98 and everything else to 0.95.
 emiss_img = u.develop_correct_emissivity(rgb_class)
 
 # Pull out thermal pixels of just plants for single image
-temp_mask = u.extract_temp_for_class(flir, class_mask, emiss_img)
+temp_mask = u.extract_temp(flir, class_mask, emiss_img)
+
+## ---PRELIMINARY ANALYSIS-----------------------------------------------------
+# This section will pull out all pixels of interest across a timeseries 
+# (assuming the camera did not move) and plots the mean, max, and min temperature. 
+# It will correct the temperature based on the emissivity value assigned above.
 
 # Pull out thermal pixels of just plants for a set of images
-dirLoc = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\'
-exiftoolpath = "C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe"
-all_temp_mask = u.batch_extract_temp_for_class(dirLoc, class_mask, emiss_img, exiftoolpath=exiftoolpath)
+all_temp_mask = u.batch_extract_temp(dirLoc, class_mask, emiss_img, exiftoolpath=exiftoolpath)
 plt.figure(figsize=(15,5))
 plt.subplot(1,3,1)
 plt.imshow(all_temp_mask[:,:,0])
@@ -84,4 +127,16 @@ plt.show(block='TRUE')
 # Plot timeseries
 u.plot_temp_timeseries(all_temp_mask)
 
-# END
+## ---EXPORTING CORRECTED THERMAL IMAGES---------------------------------------
+# In this example, we are saving each thermal image as a .csv file which can 
+# then be imported into your program of choice for further analysis. 
+# This is, perhaps obviously, not the only way to exporting the data. 
+
+# First step is to correct the emissivity on all pixels for all images
+all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpath)
+
+# After correcting temperature
+outDir = dirLoc + 'CSV_Output\\'
+u.output_csv(outDir, all_temp, rgb_class, emiss_img)
+
+## ---END----------------------------------------------------------------------
