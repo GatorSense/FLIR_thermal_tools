@@ -10,20 +10,6 @@ from skimage.transform import rescale
 from sklearn import mixture
 import os
 
-def save_thermal_csv(flirobj, filename):
-    """
-    Function that saves the numpy array as a .csv
-    
-    INPUTS:
-    1) flirobj: the flirimageextractor object.
-    2) filename: a string containing the location of the output csv file. 
-    
-    OUTPUTS:
-    Saves a csv of the thermal image where each value is a pixel in the thermal image. 
-    """
-    data = flirobj.get_thermal_np()
-    np.savetxt(filename, data, delimiter=',')
-
 def extract_rescale_image(flirobj, offset=[0], plot=1):
     """
     Function that creates the coarse RGB image that matches the resolution of the thermal image.
