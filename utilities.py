@@ -7,6 +7,8 @@ import subprocess
 import cv2
 import glob
 from skimage.transform import rescale
+from sklearn import mixture
+import os
 
 def save_thermal_csv(flirobj, filename):
     """
@@ -56,9 +58,9 @@ def extract_rescale_image(flirobj, offset=[0], plot=1):
         yrange = np.arange(ht_center-(therm.shape[0]/2),ht_center+(therm.shape[0]/2), dtype=int)
         xrange = np.arange(wd_center-(therm.shape[1]/2),wd_center+(therm.shape[1]/2), dtype=int)
     else:
-        yrange = np.arange(-offset[0],-offset[0]+(therm.shape[0])).astype(int)
-        xrange = np.arange(-offset[1],-offset[1]+(therm.shape[1])).astype(int)
-    
+        yrange = np.arange(-offset[1],-offset[1]+(therm.shape[0])).astype(int)
+        xrange = np.arange(-offset[0],-offset[0]+(therm.shape[1])).astype(int)
+        
     # Crop the rescaled imaged
     htv, wdv = np.meshgrid(yrange,xrange)
     image_cropped = np.swapaxes(image_rescaled[htv, wdv, :],1,0)    
@@ -104,8 +106,7 @@ def manual_img_registration(flirobj):
     """
     # Getting Images
     therm = flirobj.get_thermal_np()
-    #rgb, junk = extract_coarse_image(flirobj)
-    rgb, junk = extract_rescale_image(flirobj, plot=0)
+    rgb, notused = extract_rescale_image(flirobj, plot=0)
     
     # Plot Images
     fig = plt.figure(figsize=(10,5))
@@ -148,7 +149,7 @@ def manual_img_registration(flirobj):
     
     return offset, pts_therm, pts_rgb
 
-def classify_rgb(img, K=3, plot=1):
+def classify_rgb_KMC(img, K=3, plot=1):
     """
     This classifies an RGB image using K-Means clustering.
     Note: only 10 colors are specified, so will have plotting error with K > 10
@@ -164,6 +165,9 @@ def classify_rgb(img, K=3, plot=1):
             but having undergone Color Quantization which is the process of 
             reducing number of colors in an image.
     """
+    # Setting random seed to ensure results are consistent with each run
+    cv2.setRNGSeed(1)
+    
     # Preparing RGB Image
     vectorized = img.reshape((-1,3))
     vectorized = np.float32(vectorized)
@@ -210,161 +214,71 @@ def classify_rgb(img, K=3, plot=1):
 
     return label_image, result_image
 
-def GMM_rgb(image,num_class,hsv= 0, plot=1): 
+def classify_rgb_GMM(img,num_class=3,transform=0,plot=1): 
     """
     This classifies an RGB image using Gaussian Mixture Modeling.
     Note: only 10 colors are specified, so will have plotting error with K > 10
     INPUTS:
         1) img: a 3D numpy array of rgb image
-        2) num_class: number of GMM classes
-        3) hsv: transform the image from rgb to hsv or lab
-                1 = transform to hsv, 0 = keep RGB (default), 2 = transform to lab
+        2) num_class: number of GMM classes, by default it assumes three classes.
+        3) transform: transform the image from rgb to hsv or lab color space
+                0 = keep RGB (default), 1 = transform to HSV,  2 = transform to LAB
         4) plot: a flag that determine if multiple figures of classified is displayed. 
                 1 = plot displayed, 0 = no plot is displayed
     OUTPUTS:
         1) label_image: a 2D numpy array the same x an y dimensions as input rgb image, 
-            but each pixel is a GMM class.
+                but each pixel is a GMM class.
+    """    
+    np.random.seed(1)
+    
+    # Keep in RGB Color Space
+    if transform == 0:
+        imgCS = img
+    
+    #Transform to HSV Color Space
+    if transform == 1:
+        imgCS = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         
-    """
-    img = np.array(image)
+    #Transform to LAB Color Space
+    if transform == 2:
+        imgCS = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
    
-    if hsv == 2:
-        #Transform to LAB
-        # make sure that values are between 0 and 255, i.e. within 8bit range
-        img *= 255/img.max() 
-        # cast to 8bit
-        img = np.array(img, np.uint8)
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-        
-         #Prepare Image
-        vectorized = img.reshape((-1,3))
-        vectorized = np.float32(vectorized)
+    # Vectorizing Image for Clustering
+    vectorized = imgCS.reshape((-1,3))
     
-        #Gaussian Mixture Modeling
-        gmm = GaussianMixture(n_components=num_class).fit(vectorized)
-        labels = gmm.predict(vectorized)
-        
-        
-        # Labeled class image
-        label_image = labels.reshape((img.shape[0], img.shape[1]))
-        
-        
-        if plot == 1:
-            # Plotting Results
-            coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
-            fig = plt.figure(figsize=(10,5))
-            ax1 = fig.add_subplot(1,2,1)
-            ax1.imshow(image)
-            ax1.set_title('Original Image') 
-            ax1.set_xticks([])
-            ax1.set_yticks([])
-            ax2 = fig.add_subplot(1,2,2)
-            cmap = colors.ListedColormap(coloroptions[0:num_class])
-            ax2.imshow(label_image, cmap=cmap)
-            ax2.set_title('GMM with LAB Classes = ' + str(num_class) )
-            ax2.set_xticks([]) 
-            ax2.set_yticks([])
-            fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
-            plt.show(block='TRUE')
-            
-            # Plotting just GMM with label
-            ticklabels = ['1','2','3','4','5','6','7','8','9','10']
-            fig, ax = plt.subplots(figsize=(5,5))
-            im = ax.imshow(label_image, cmap=cmap)
-            cbar = fig.colorbar(im, ax=ax, shrink = 0.6, ticks=np.arange(0,num_class)) 
-            cbar.ax.set_yticklabels(ticklabels[0:num_class]) 
-            cbar.ax.set_ylabel('Classes')
-            plt.show(block='TRUE')
-   
+    #Gaussian Mixture Modeling
+    gmm = mixture.GaussianMixture(n_components=num_class).fit(vectorized)
+    labels = gmm.predict(vectorized)
     
-    if hsv == 1:
-        #Transform to HSV
-        # make sure that values are between 0 and 255, i.e. within 8bit range
-        img *= 255/img.max() 
-        # cast to 8bit
-        img = np.array(img, np.uint8)
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    # Labeled class image
+    label_image = labels.reshape((img.shape[0], img.shape[1]))
         
-         #Prepare Image
-        vectorized = img.reshape((-1,3))
-        vectorized = np.float32(vectorized)
-    
-        #Gaussian Mixture Modeling
-        gmm = GaussianMixture(n_components=num_class).fit(vectorized)
-        labels = gmm.predict(vectorized)
+    if plot == 1:
+        # Plotting Results
+        coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
+        fig = plt.figure(figsize=(10,5))
+        ax1 = fig.add_subplot(1,2,1)
+        ax1.imshow(img)
+        ax1.set_title('Original Image') 
+        ax1.set_xticks([])
+        ax1.set_yticks([])
+        ax2 = fig.add_subplot(1,2,2)
+        cmap = colors.ListedColormap(coloroptions[0:num_class])
+        ax2.imshow(label_image, cmap=cmap)
+        ax2.set_title('GMM with RGB Classes = ' + str(num_class) )
+        ax2.set_xticks([]) 
+        ax2.set_yticks([])
+        fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
+        plt.show(block='TRUE')
         
-        
-        # Labeled class image
-        label_image = labels.reshape((img.shape[0], img.shape[1]))
-        
-        
-        if plot == 1:
-            # Plotting Results
-            coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
-            fig = plt.figure(figsize=(10,5))
-            ax1 = fig.add_subplot(1,2,1)
-            ax1.imshow(image)
-            ax1.set_title('Original Image') 
-            ax1.set_xticks([])
-            ax1.set_yticks([])
-            ax2 = fig.add_subplot(1,2,2)
-            cmap = colors.ListedColormap(coloroptions[0:num_class])
-            ax2.imshow(label_image, cmap=cmap)
-            ax2.set_title('GMM with HSV Classes = ' + str(num_class) )
-            ax2.set_xticks([]) 
-            ax2.set_yticks([])
-            fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
-            plt.show(block='TRUE')
-            
-            # Plotting just GMM with label
-            ticklabels = ['1','2','3','4','5','6','7','8','9','10']
-            fig, ax = plt.subplots(figsize=(5,5))
-            im = ax.imshow(label_image, cmap=cmap)
-            cbar = fig.colorbar(im, ax=ax, shrink = 0.6, ticks=np.arange(0,num_class)) 
-            cbar.ax.set_yticklabels(ticklabels[0:num_class]) 
-            cbar.ax.set_ylabel('Classes')
-            plt.show(block='TRUE')
-        
-    if hsv == 0:
-        #Prepare Image
-        vectorized = img.reshape((-1,3))
-        vectorized = np.float32(vectorized)
-    
-        #Gaussian Mixture Modeling
-        gmm = GaussianMixture(n_components=num_class).fit(vectorized)
-        labels = gmm.predict(vectorized)
-        
-        
-        # Labeled class image
-        label_image = labels.reshape((img.shape[0], img.shape[1]))
-        
-        
-        if plot == 1:
-            # Plotting Results
-            coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
-            fig = plt.figure(figsize=(10,5))
-            ax1 = fig.add_subplot(1,2,1)
-            ax1.imshow(image)
-            ax1.set_title('Original Image') 
-            ax1.set_xticks([])
-            ax1.set_yticks([])
-            ax2 = fig.add_subplot(1,2,2)
-            cmap = colors.ListedColormap(coloroptions[0:num_class])
-            ax2.imshow(label_image, cmap=cmap)
-            ax2.set_title('GMM with RGB Classes = ' + str(num_class) )
-            ax2.set_xticks([]) 
-            ax2.set_yticks([])
-            fig.subplots_adjust(left=0.05, top = 0.8, bottom=0.01, wspace=0.05)
-            plt.show(block='TRUE')
-            
-            # Plotting just GMM with label
-            ticklabels = ['1','2','3','4','5','6','7','8','9','10']
-            fig, ax = plt.subplots(figsize=(5,5))
-            im = ax.imshow(label_image, cmap=cmap)
-            cbar = fig.colorbar(im, ax=ax, shrink = 0.6, ticks=np.arange(0,num_class)) 
-            cbar.ax.set_yticklabels(ticklabels[0:num_class]) 
-            cbar.ax.set_ylabel('Classes')
-            plt.show(block='TRUE')
+        # Plotting just GMM with label
+        ticklabels = ['1','2','3','4','5','6','7','8','9','10']
+        fig, ax = plt.subplots(figsize=(5,5))
+        im = ax.imshow(label_image, cmap=cmap)
+        cbar = fig.colorbar(im, ax=ax, shrink = 0.6, ticks=np.arange(0,num_class)) 
+        cbar.ax.set_yticklabels(ticklabels[0:num_class]) 
+        cbar.ax.set_ylabel('Classes')
+        plt.show(block='TRUE')
         
     return label_image
 
@@ -438,34 +352,37 @@ def create_class_mask(classimg, classinterest, plot=1):
     
     return mask
 
-def extract_temp_for_class(flirobj, mask, emiss=[0], plot=1):
+def extract_temp(flirobj, classmask=[0], emiss=[0], plot=1):
     """
     This function creates a numpy array thermal image that ONLY contains pixels for class
     of interest with all other pixels set to 0. This is for a SINGLE image
     INPUTS:
         1) flirobj: the flirimageextractor object
-        2) mask: a binary mask with class pixels set as 1. 
-        3) emiss: OPTIONAL, a 2D numpy array with each pixel containing correct emissivity
+        2) classmask: OPTIONAL - a binary mask with class pixels set as 1. 
+                Output will only have class pixel temperatures.
+        3) emiss: OPTIONAL - a 2D numpy array with each pixel containing correct emissivity
                 If provided the temperature will be corrected for emissivity
-        4) plot: a flag that determine if a figure of tempeature image is displayed. 
+        4) plot: OPTIONAL - a flag that determine if a figure of tempeature image is displayed. 
                 1 = plot displayed, 0 = no plot is displayed
     OUTPUTS:
         1) therm_masked: a 2D numpy array of temperature values for a class of interest
-    """       
+    """    
+    # Determine if emissivity correction will be performed
     if len(emiss) == 1:
         therm = flirobj.get_thermal_np()
     else:
         therm = correct_temp_emiss(flirobj, emiss, plot=0)
-        
-    therm_masked = np.ma.masked_where(mask != 1, therm)
+    
+    # Determine which pixels will have temperature extracted
+    if len(classmask) == 1:    
+        classmask = np.ones((therm.shape[0],therm.shape[0]))
+    therm_masked = np.ma.masked_where(classmask != 1, therm)
     
     if plot == 1:
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
         minT = np.min(therm)
         maxT = np.max(therm)
-        print(minT)
-        print(maxT)
         plt.imshow(therm, cmap='jet', vmin=minT, vmax=maxT)
         plt.subplot(1,2,2)
         plt.imshow(therm_masked, cmap='jet', vmin=minT, vmax=maxT)
@@ -473,15 +390,19 @@ def extract_temp_for_class(flirobj, mask, emiss=[0], plot=1):
         
     return therm_masked
 
-def batch_extract_temp_for_class(dirLoc, mask, emiss=[0], exiftoolpath=''):
+def batch_extract_temp(dirLoc, classmask=[0], emiss=[0], exiftoolpath=''):
     """
-    This function creates a 3D numpy array thermal image that ONLY contains pixels for class
-    of interest with all other pixels set to 0. This is for a directory of images.
+    This function creates a 3D numpy array thermal image for a directory of images.
+    It can apply the emissivity correction to the batch of images which assumes
+    the RGB image applies to all images (aka the  camera didn't move).
+    It can also only extract pixels for a class of interest.
     INPUTS:
         1) dirLoc: a string containing the directory of FLIR images.
-        2) mask: a binary mask with class pixels set as 1. 
-        3) emiss: a 2D numpy array with each pixel containing correct emissivity
-        4) exiftoolpath = OPTIONAL a string containing the location of exiftools.
+        2) classmask: OPTIONAL - a binary mask with class pixels set as 1. 
+                Output will only have class pixel temperatures.
+        3) emiss: OPTIONAL - a 2D numpy array with each pixel containing correct emissivity. 
+                If provided output will correct temperature based on emissivity
+        4) exiftoolpath = OPTIONAL - a string containing the location of exiftools.
                 Only use if the exiftool path is different than the python path.
     OUTPUTS:
         1) all_temp: a 3D numpy array of temperature values for a class of interest
@@ -490,7 +411,7 @@ def batch_extract_temp_for_class(dirLoc, mask, emiss=[0], exiftoolpath=''):
     """  
     filelist = glob.glob(dirLoc + '*')
     print('Found ' + str(len(filelist)) + ' files.')
-    all_temp = np.ma.empty((mask.shape[0], mask.shape[1], len(filelist)))
+
     
     for f in range(0,len(filelist)):
         # Get individual file
@@ -498,13 +419,20 @@ def batch_extract_temp_for_class(dirLoc, mask, emiss=[0], exiftoolpath=''):
             flir = flirimageextractor.FlirImageExtractor()
         else:
             flir = flirimageextractor.FlirImageExtractor(exiftool_path=exiftoolpath)
-
         flir.process_image(filelist[f], RGB=True)
         
+        # Setting up 3D numpy array based on if class mask is provided.
+        if f == 0:
+            temp = flir.get_thermal_np()
+            if len(classmask) == 1:
+                classmask = np.ones((temp.shape[0],temp.shape[1]))              
+            all_temp = np.ma.empty((classmask.shape[0], classmask.shape[1], len(filelist)))
+        
+        # Emissivity Correction
         if len(emiss) == 1:
-            all_temp[:,:,f] = extract_temp_for_class(flir, mask, plot=0)
+            all_temp[:,:,f] = extract_temp(flir, classmask, plot=0)
         else:
-            all_temp[:,:,f] = extract_temp_for_class(flir, mask, emiss, plot=0)
+            all_temp[:,:,f] = extract_temp(flir, classmask, emiss, plot=0)
         
     return all_temp
 
@@ -607,3 +535,42 @@ def correct_temp_emiss(flirobj, emiss, plot=1):
         plt.show(block='true')
         
     return corrected_temp
+
+def output_csv(outDir,thermal,classimg=[0],emissimg=[0]):
+    """
+    This function saves each thermal image, the class assignment 
+    from the RGB imagery, and emissivity correction values for each pixel as a .csv file.
+    INPUTS:
+        1) outDir: a string containing the folder all .csv files will be saved.
+        2) thermal: a numpy array containing the thermal data (already corrected)
+                if it is a 3D array (or timeseries), each thermal image will be saved
+                separately as thermal_0.csv, thermal_1.csv, thermal_2.csv, ...
+        3) classimg: OPTIONAL - a numpy array (matching same x y dimension of thermal array) 
+                with the class assignment for each pixel saved as class_image.csv. 
+        4) emissimg: OPTIONAL - a numpy array (matching same x y dimension of thermal array) 
+                with the emissivity assignment for each pixel saved as emissivity_image.csv. 
+    """
+    # If output directory doesn't exist create it
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+    
+    # If only saving a single thermal image (2D numpy array)
+    if thermal.ndim == 2:
+        fname = outDir + 'thermal_0.csv'
+        np.savetxt(fname, thermal, delimiter=',')
+    
+    # If saving multiple thermal images (3D numpy array)
+    else:
+        for i in range(0,thermal.shape[2]):
+            fname = outDir + 'thermal_' + str(i) + '.csv'
+            np.savetxt(fname, thermal[:,:,i], delimiter=',')
+    
+    # Save class image if provided
+    if len(classimg) != 1:
+        fname = outDir + 'class_image.csv'
+        np.savetxt(fname, classimg, delimiter=',')
+        
+    # Save emissivity image if provided
+    if len(emissimg) != 1:
+        fname = outDir + 'emissivity_image.csv'
+        np.savetxt(fname, emissimg, delimiter=',')
