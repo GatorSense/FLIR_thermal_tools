@@ -15,11 +15,15 @@ import utilities as u
 ## ---GETTING STARTED----------------------------------------------------------
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
-dirLoc = 'C:\\Users\\susanmeerdink\\Documents\\Git\\FLIR_thermal_tools\\Test_Images\\'
-exiftoolpath = "C:\\Users\\susanmeerdink\\.utilities\\exiftool.exe" 
+
+dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\test_images\\'
+#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\FLIR_thermal_tools\\Test_Images\\'
+exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
-filename = dirLoc + 'IR_56020.jpg'
+filename = dirLoc + 'IR_10379.jpg'
+#filename = dirLoc + 'IR_56020.jpg'
+print (filename)
 flir = flirimageextractor.FlirImageExtractor(exiftool_path=exiftoolpath)
 flir.process_image(filename, RGB=True)
 
@@ -51,7 +55,8 @@ print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(of
 # You can see with the manually determined offsets that the images are now aligned.
 # By doing this we can use the RGB image to classify the material types in the images.
 # This is useful if you are interested in one particular part or class type.
-offset = [-155, -70]  # This i the manual offset I got when running the demo images.
+#offset = [-155, -70]  # This i the manual offset I got when running the demo images.
+offset = [offset[0], offset[1]]
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 ## ---SELECTING PIXELS OF INTEREST---------------------------------------------
@@ -68,7 +73,7 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 # confused with plant pixels.
 # Build a mask of your area of interest 
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
-mask[30:270,220:400] = 1
+mask[0:450,100:400] = 1
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
 # Classify using K-Means Clustering the newly masked rgb image
@@ -136,7 +141,7 @@ u.plot_temp_timeseries(all_temp_mask)
 all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpath)
 
 # After correcting temperature
-outDir = dirLoc + 'CSV_Output\\'
+outDir = dirLoc + '..\\CSV_Output\\'
 u.output_csv(outDir, all_temp, rgb_class, emiss_img)
 
 ## ---END----------------------------------------------------------------------
