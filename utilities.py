@@ -397,7 +397,6 @@ def batch_extract_temp(dirLoc, classmask=[0], emiss=[0], exiftoolpath=''):
     """  
     filelist = glob.glob(dirLoc + '*')
     print('Found ' + str(len(filelist)) + ' files.')
-
     
     for f in range(0,len(filelist), 2):
         # Get individual file

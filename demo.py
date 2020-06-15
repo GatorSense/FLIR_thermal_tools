@@ -16,14 +16,13 @@ import utilities as u
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
 
-dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\test_images\\'
-#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\FLIR_thermal_tools\\Test_Images\\'
+dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
+#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\Test_Images\\'
 exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
 filename = dirLoc + 'IR_10379.jpg'
-#filename = dirLoc + 'IR_56020.jpg'
-print (filename)
+print(filename)
 flir = flirimageextractor.FlirImageExtractor(exiftool_path=exiftoolpath)
 flir.process_image(filename, RGB=True)
 
@@ -108,6 +107,7 @@ class_mask = u.create_class_mask(rgb_class, [3,6])
 # each class. There are tables online for broadband emissivity values. If you
 # do not know the emissivity, keep the value at 0.95. 
 # In this example, I set the vegetation pixels to 0.98 and everything else to 0.95.
+# For 2020-03-02_mandi dataset, Class 3 and 5 are vegetation. Class 1, 2, 4, 6 are .95
 emiss_img = u.develop_correct_emissivity(rgb_class)
 
 # Pull out thermal pixels of just plants for single image
