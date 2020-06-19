@@ -16,8 +16,8 @@ import utilities as u
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
 
-dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
 #dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\Test_Images\\'
+dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
 exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
@@ -54,8 +54,8 @@ print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(of
 # You can see with the manually determined offsets that the images are now aligned.
 # By doing this we can use the RGB image to classify the material types in the images.
 # This is useful if you are interested in one particular part or class type.
-#offset = [-155, -70]  # This i the manual offset I got when running the demo images.
-offset = [offset[0], offset[1]]
+#offset = [-69, -76]  # This is the manual offset I got for 2020-03-02_mandi/psent2-18-6
+offset = [-69, -76]
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 ## ---SELECTING PIXELS OF INTEREST---------------------------------------------
@@ -72,13 +72,14 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 # confused with plant pixels.
 # Build a mask of your area of interest 
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
-mask[0:450,100:400] = 1
+mask[0:445, 115:395] = 1
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
 # Classify using K-Means Clustering the newly masked rgb image
-rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 3)
+rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
 
-# Pull out just the class for plant material 
+# Pull out just the class for plant material
+# Vegetation is class 3 for KMC
 class_mask_KMC = u.create_class_mask(rgb_class, 3)
 
 # METHOD 2: Gaussian Mixture Models
@@ -89,10 +90,11 @@ class_mask_KMC = u.create_class_mask(rgb_class, 3)
 # In the following steps, we will use the results from the GMM not KMC.
 
 # Classify using Gaussian Mixture Models the rgb image
-rgb_class = u.classify_rgb_GMM(rgb_mask, 6)
+rgb_class = u.classify_rgb_GMM(rgb_mask, 4)
 
 # Pull out just the class for plant material
-class_mask = u.create_class_mask(rgb_class, [3,6])
+# Vegetation is class 4 for GMM
+class_mask = u.create_class_mask(rgb_class, 4)
 
 ## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
 # In order to determine the temperature of an object, it is necessary to also 
@@ -107,7 +109,7 @@ class_mask = u.create_class_mask(rgb_class, [3,6])
 # each class. There are tables online for broadband emissivity values. If you
 # do not know the emissivity, keep the value at 0.95. 
 # In this example, I set the vegetation pixels to 0.98 and everything else to 0.95.
-# For 2020-03-02_mandi dataset, Class 3 and 5 are vegetation. Class 1, 2, 4, 6 are .95
+# For 2020-03-02_mandi psent2-18-6 dataset, Class 4 is vegetation (.98). Class 1=2=3=.95
 emiss_img = u.develop_correct_emissivity(rgb_class)
 
 # Pull out thermal pixels of just plants for single image
@@ -141,6 +143,7 @@ u.plot_temp_timeseries(all_temp_mask)
 all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpath)
 
 # After correcting temperature
+#outDir = dirLoc + '..\\Test_CSV_Output\\'
 outDir = dirLoc + '..\\CSV_Output\\'
 u.output_csv(outDir, all_temp, rgb_class, emiss_img)
 

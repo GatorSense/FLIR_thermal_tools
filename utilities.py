@@ -398,7 +398,7 @@ def batch_extract_temp(dirLoc, classmask=[0], emiss=[0], exiftoolpath=''):
     filelist = glob.glob(dirLoc + '*')
     print('Found ' + str(len(filelist)) + ' files.')
     
-    for f in range(0,len(filelist), 2):
+    for f in range(0,len(filelist)):
         # Get individual file
         print(f)
         if not exiftoolpath:
@@ -464,7 +464,7 @@ def develop_correct_emissivity(class_img):
                 but every pixel has an emissivity value.
     """
     K = len(np.unique(class_img))
-    
+
     # Plotting just K-Means with label
     coloroptions = ['b','g','r','c','m','y','k','orange','navy','gray']
     ticklabels = ['1','2','3','4','5','6','7','8','9','10']
@@ -481,7 +481,7 @@ def develop_correct_emissivity(class_img):
     for c in range(0,K):
         strout = 'Emissivity for Class ' + str(c+1) + ': '
         emiss[c] = input(strout)
-        
+
     emiss_img = np.zeros((class_img.shape[0], class_img.shape[1]))    
     for e in range(0, K):
         idx_x, idx_y = np.where(class_img == e)
