@@ -16,8 +16,8 @@ import utilities as u
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
 
-#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\Test_Images\\'
-dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
+    dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\Test_Images\\'
+#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
 exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
@@ -47,8 +47,8 @@ plt.show(block='TRUE') # I needed to have block=TRUE for image to remain display
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 
 ## Determine manual correction of Thermal and RGB registration 
-offset, pts_temp, pts_rgb = u.manual_img_registration(flir)
-print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(offset[1]))
+#offset, pts_temp, pts_rgb = u.manual_img_registration(flir)
+#print('X pixel offset is ' + str(offset[0]) + ' and Y pixel offset is ' + str(offset[1]))
 
 ## Fix Thermal and RGB registration with manual correction
 # You can see with the manually determined offsets that the images are now aligned.
@@ -76,11 +76,11 @@ mask[0:445, 115:395] = 1
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
 # Classify using K-Means Clustering the newly masked rgb image
-rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
+#rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
 
 # Pull out just the class for plant material
 # Vegetation is class 3 for KMC
-class_mask_KMC = u.create_class_mask(rgb_class, 3)
+#class_mask_KMC = u.create_class_mask(rgb_class, 3)
 
 # METHOD 2: Gaussian Mixture Models
 # We have found this method to be more robust than K-Means Clustering, but 
@@ -91,11 +91,12 @@ class_mask_KMC = u.create_class_mask(rgb_class, 3)
 
 # Classify using Gaussian Mixture Models the rgb image
 rgb_class = u.classify_rgb_GMM(rgb_mask, 4)
-
+print(rgb_class.shape)
 # Pull out just the class for plant material
 # Vegetation is class 4 for GMM
 class_mask = u.create_class_mask(rgb_class, 4)
-
+print("class_mask:",class_mask.shape)
+np.save('class_mask_array', class_mask)
 ## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
 # In order to determine the temperature of an object, it is necessary to also 
 # know or assume an emissivity value for that object. Thermal cameras tend to 

@@ -475,7 +475,7 @@ def develop_correct_emissivity(class_img):
     cbar.ax.set_yticklabels(ticklabels[0:K]) 
     cbar.ax.set_ylabel('Classes')
     plt.show(block='true')
-    
+
     print('Input the emissivity for each class. If unknown put 0.95')
     emiss = np.zeros((K))
     for c in range(0,K):
@@ -486,7 +486,7 @@ def develop_correct_emissivity(class_img):
     for e in range(0, K):
         idx_x, idx_y = np.where(class_img == e)
         emiss_img[idx_x, idx_y] = emiss[e]
-        
+
     return emiss_img
 
 def correct_temp_emiss(flirobj, emiss, plot=1):
