@@ -16,8 +16,7 @@ import utilities as u
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
 
-    dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\Test_Images\\'
-#dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
+dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
 exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
@@ -66,21 +65,25 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 # Gaussian Mixture Models. Both of these methods do not require training, but as 
 # a result may not be as accurate as a classification method.
 
-# METHOD 1: K Means Clustering
-# We have found this method to be very sensitive to background pixels. 
-# So the first step we will build a mask to avoid pixels that will be 
-# confused with plant pixels.
-# Build a mask of your area of interest 
+# Build a mask of your area of interest
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
 mask[0:445, 115:395] = 1
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
+"""We don't use KMC since GMM is better
+# METHOD 1: K Means Clustering
+# We have found this method to be very sensitive to background pixels. 
+# So the first step we will build a mask to avoid pixels that will be 
+# confused with plant pixels.
+
+
 # Classify using K-Means Clustering the newly masked rgb image
-#rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
+rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
 
 # Pull out just the class for plant material
 # Vegetation is class 3 for KMC
-#class_mask_KMC = u.create_class_mask(rgb_class, 3)
+class_mask_KMC = u.create_class_mask(rgb_class, 3)
+"""
 
 # METHOD 2: Gaussian Mixture Models
 # We have found this method to be more robust than K-Means Clustering, but 
@@ -91,12 +94,12 @@ rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
 # Classify using Gaussian Mixture Models the rgb image
 rgb_class = u.classify_rgb_GMM(rgb_mask, 4)
-print(rgb_class.shape)
+
 # Pull out just the class for plant material
 # Vegetation is class 4 for GMM
 class_mask = u.create_class_mask(rgb_class, 4)
-print("class_mask:",class_mask.shape)
 np.save('class_mask_array', class_mask)
+
 ## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
 # In order to determine the temperature of an object, it is necessary to also 
 # know or assume an emissivity value for that object. Thermal cameras tend to 
@@ -144,7 +147,6 @@ u.plot_temp_timeseries(all_temp_mask)
 all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpath)
 
 # After correcting temperature
-#outDir = dirLoc + '..\\Test_CSV_Output\\'
 outDir = dirLoc + '..\\CSV_Output\\'
 u.output_csv(outDir, all_temp, rgb_class, emiss_img)
 
