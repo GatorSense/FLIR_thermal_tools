@@ -16,11 +16,11 @@ import utilities as u
 ## Setting up some parameters
 # You will have change the path of exiftool depending on where it was installed.
 
-dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-03-02_mandi\\psent2-18-6\\images\\'
+dirLoc = 'C:\\Users\\caleb\\MachineLearningLabLocal\\DARPA-Sentinel-Project\\Temperature\\2020-07_mandi\\2020-07-04\\thermal_images\\'
 exiftoolpath = 'C:\\Users\\caleb\\Downloads\\exiftool-11.99\\exiftool.exe'
 
 ## Load Image using flirimageextractor
-filename = dirLoc + 'IR_10379.jpg'
+filename = dirLoc + 'IR_12737.jpg'
 print(filename)
 flir = flirimageextractor.FlirImageExtractor(exiftool_path=exiftoolpath)
 flir.process_image(filename, RGB=True)
@@ -53,8 +53,8 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 # You can see with the manually determined offsets that the images are now aligned.
 # By doing this we can use the RGB image to classify the material types in the images.
 # This is useful if you are interested in one particular part or class type.
-#offset = [-69, -76]  # This is the manual offset I got for 2020-03-02_mandi/psent2-18-6
-offset = [-69, -76]
+#offset = [-73, -73]  # This is the manual offset I got for 2020-07-04
+offset = [-73, -73]
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 ## ---SELECTING PIXELS OF INTEREST---------------------------------------------
@@ -67,23 +67,18 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 # Build a mask of your area of interest
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
-mask[0:445, 115:395] = 1
+mask[0:480, 84:556] = 1
+mask[210:480, 0:160] = 0
+mask[210:311, 0:216] = 0
+mask[0:304, 450:640] = 0
+mask[145:304, 436:640] = 0
+mask[350:480, 0:196] = 0
+mask[34:69, 0:106] = 0
+mask[69:82, 0:102] = 0
+mask[418:480, 495:640] = 0
+mask[413:480, 506:640] = 0
+mask[409:480, 510:640] = 0
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
-
-"""We don't use KMC since GMM is better
-# METHOD 1: K Means Clustering
-# We have found this method to be very sensitive to background pixels. 
-# So the first step we will build a mask to avoid pixels that will be 
-# confused with plant pixels.
-
-
-# Classify using K-Means Clustering the newly masked rgb image
-rgb_class, rgb_qcolor = u.classify_rgb_KMC(rgb_mask, 4)
-
-# Pull out just the class for plant material
-# Vegetation is class 3 for KMC
-class_mask_KMC = u.create_class_mask(rgb_class, 3)
-"""
 
 # METHOD 2: Gaussian Mixture Models
 # We have found this method to be more robust than K-Means Clustering, but 
@@ -93,12 +88,12 @@ class_mask_KMC = u.create_class_mask(rgb_class, 3)
 # In the following steps, we will use the results from the GMM not KMC.
 
 # Classify using Gaussian Mixture Models the rgb image
-rgb_class = u.classify_rgb_GMM(rgb_mask, 4)
+rgb_class = u.classify_rgb_GMM(rgb_mask, 3)
+
 
 # Pull out just the class for plant material
-# Vegetation is class 4 for GMM
-class_mask = u.create_class_mask(rgb_class, 4)
-np.save('class_mask_array', class_mask)
+# Vegetation is class 1 for GMM
+class_mask = u.create_class_mask(classimg=rgb_class, classinterest=[1])
 
 ## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
 # In order to determine the temperature of an object, it is necessary to also 
@@ -114,10 +109,11 @@ np.save('class_mask_array', class_mask)
 # do not know the emissivity, keep the value at 0.95. 
 # In this example, I set the vegetation pixels to 0.98 and everything else to 0.95.
 # For 2020-03-02_mandi psent2-18-6 dataset, Class 4 is vegetation (.98). Class 1=2=3=.95
+# For 2020-07-04_mandi dataset, Class 1 is vegetation (.98). Class 2=3=.95
 emiss_img = u.develop_correct_emissivity(rgb_class)
 
 # Pull out thermal pixels of just plants for single image
-temp_mask = u.extract_temp(flir, class_mask, emiss_img)
+temp_mask = u.extract_temp(flir, classmask=class_mask, emiss=emiss_img)
 
 ## ---PRELIMINARY ANALYSIS-----------------------------------------------------
 # This section will pull out all pixels of interest across a timeseries 
@@ -148,6 +144,7 @@ all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpat
 
 # After correcting temperature
 outDir = dirLoc + '..\\CSV_Output\\'
+np.save(outDir, class_mask)
 u.output_csv(outDir, all_temp, rgb_class, emiss_img)
 
 ## ---END----------------------------------------------------------------------

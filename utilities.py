@@ -235,6 +235,7 @@ def classify_rgb_GMM(img,num_class=3,transform=0,plot=1):
     #Gaussian Mixture Modeling
     gmm = mixture.GaussianMixture(n_components=num_class).fit(vectorized)
     labels = gmm.predict(vectorized)
+
     
     # Labeled class image
     label_image = labels.reshape((img.shape[0], img.shape[1]))
@@ -306,9 +307,9 @@ def create_class_mask(classimg, classinterest, plot=1):
     as 0 and all classes of interest to 1. This can be used to extract temperatures
     only for classes of interest. 
     INPUTS:
-        1) classinterest: a array containing the class or classes of interest. Count base 1 to match K-Means Class Image
+        1) classimg: the K-Means class image which is (2D) numpy array
+        2) classinterest: a array containing the class or classes of interest. Count base 1 to match K-Means Class Image
                 All other classes will be masked out
-        2) classimg: the K-Means class image which is (2D) numpy array
         3) plot: a flag that determine if a figure of masked K-Means class image is displayed. 
                 1 = plot displayed, 0 = no plot is displayed
     OUTPUTS:
@@ -316,16 +317,15 @@ def create_class_mask(classimg, classinterest, plot=1):
                 0's are pixels NOT of interest and will be masked out.
                 1's are pixels of interest and will be returned.
     """
-    mask = np.zeros((classimg.shape[0], classimg.shape[1]))
-    if isinstance(classinterest,int):
-        idx_x, idx_y = np.where(classimg == classinterest-1)
-        mask[idx_x, idx_y] = 1
-    else:
-        endrange = len(classinterest)
-        for c in range(0,endrange):
-            idx_x, idx_y = np.where(classimg == classinterest[c]-1)
-            mask[idx_x, idx_y] = 1
-    
+    mask = np.copy(classimg)
+    for cls in classinterest:
+        for x in range(0, mask.shape[0]):
+            for y in range(0, mask.shape[1]):
+                if mask[x, y] == cls-1:
+                    mask[x, y] = 1
+                else:
+                    mask[x, y] = 0
+
     if plot == 1:
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
@@ -358,12 +358,12 @@ def extract_temp(flirobj, classmask=[0], emiss=[0], plot=1):
         therm = flirobj.get_thermal_np()
     else:
         therm = correct_temp_emiss(flirobj, emiss, plot=0)
-    
+
     # Determine which pixels will have temperature extracted
     if len(classmask) == 1:    
-        classmask = np.ones((therm.shape[0],therm.shape[0]))
+        classmask = np.ones((therm.shape[0],therm.shape[1]))
     therm_masked = np.ma.masked_where(classmask != 1, therm)
-    
+
     if plot == 1:
         plt.figure(figsize=(10,5))
         plt.subplot(1,2,1)
