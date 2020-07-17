@@ -54,6 +54,7 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir)
 # By doing this we can use the RGB image to classify the material types in the images.
 # This is useful if you are interested in one particular part or class type.
 #offset = [-73, -73]  # This is the manual offset I got for 2020-07-04
+#offset = [-72, -77]  # This is the manual offset I got for 2020-07-06
 offset = [-73, -73]
 rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
@@ -67,6 +68,8 @@ rgb_lowres, rgb_crop = u.extract_rescale_image(flir, offset=offset, plot=1)
 
 # Build a mask of your area of interest
 mask = np.zeros((rgb_crop.shape[0], rgb_crop.shape[1]))
+
+# 2020-07-04
 mask[0:480, 84:556] = 1
 mask[210:480, 0:160] = 0
 mask[210:311, 0:216] = 0
@@ -78,6 +81,18 @@ mask[69:82, 0:102] = 0
 mask[418:480, 495:640] = 0
 mask[413:480, 506:640] = 0
 mask[409:480, 510:640] = 0
+
+"""
+# 2020-07-06
+mask[0:480, 40:568] = 1
+mask[0:218, 420:640] = 0
+mask[123:480, 0:119] = 0
+mask[275:640, 0:250] = 0
+mask[406:480, 0:263] = 0
+mask[218:380, 522:640] = 0
+mask[380:450, 553:640] = 0
+mask[29:143, 376:640] = 0
+"""
 rgb_mask = u.apply_mask_to_rgb(mask, rgb_crop)
 
 # METHOD 2: Gaussian Mixture Models
@@ -92,8 +107,13 @@ rgb_class = u.classify_rgb_GMM(rgb_mask, 3)
 
 
 # Pull out just the class for plant material
-# Vegetation is class 1 for GMM
-class_mask = u.create_class_mask(classimg=rgb_class, classinterest=[1])
+# Vegetation is class 1 2020-07-04
+# Vegetation is class 3 2020-07-06
+class_mask = u.create_class_mask(classimg=rgb_class, classinterest=[3])
+
+# Save mask of everything except plant pixels
+outDir = dirLoc + '..\\class_mask_array'
+np.save(outDir, class_mask)
 
 ## ---CORRECTING THERMAL IMAGERY-----------------------------------------------
 # In order to determine the temperature of an object, it is necessary to also 
@@ -113,7 +133,9 @@ class_mask = u.create_class_mask(classimg=rgb_class, classinterest=[1])
 emiss_img = u.develop_correct_emissivity(rgb_class)
 
 # Pull out thermal pixels of just plants for single image
+print(str(emiss_img.shape))
 temp_mask = u.extract_temp(flir, classmask=class_mask, emiss=emiss_img)
+
 
 ## ---PRELIMINARY ANALYSIS-----------------------------------------------------
 # This section will pull out all pixels of interest across a timeseries 
@@ -121,7 +143,7 @@ temp_mask = u.extract_temp(flir, classmask=class_mask, emiss=emiss_img)
 # It will correct the temperature based on the emissivity value assigned above.
 
 # Pull out thermal pixels of just plants for a set of images
-all_temp_mask = u.batch_extract_temp(dirLoc, class_mask, emiss_img, exiftoolpath=exiftoolpath)
+all_temp_mask = u.batch_extract_temp(dirLoc, classmask=class_mask, emiss=emiss_img, exiftoolpath=exiftoolpath)
 plt.figure(figsize=(15,5))
 plt.subplot(1,3,1)
 plt.imshow(all_temp_mask[:,:,0])
@@ -140,11 +162,10 @@ u.plot_temp_timeseries(all_temp_mask)
 # This is, perhaps obviously, not the only way to exporting the data. 
 
 # First step is to correct the emissivity on all pixels for all images
-all_temp = u.batch_extract_temp(dirLoc,emiss=emiss_img, exiftoolpath=exiftoolpath)
+#all_temp = u.batch_extract_temp(dirLoc, emiss=emiss_img, exiftoolpath=exiftoolpath)
 
 # After correcting temperature
 outDir = dirLoc + '..\\CSV_Output\\'
-np.save(outDir, class_mask)
-u.output_csv(outDir, all_temp, rgb_class, emiss_img)
+u.output_csv(outDir, all_temp_mask, rgb_class, emiss_img)
 
 ## ---END----------------------------------------------------------------------
